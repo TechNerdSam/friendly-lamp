@@ -48,9 +48,24 @@
                 transform: translateY(0);
             }
         }
-
+        
         .fade-in {
             animation: fadeIn 0.5s ease-out forwards;
+        }
+
+        /* Animation du spinner */
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            border-left-color: #2DD4BF;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
         }
     </style>
 </head>
@@ -64,20 +79,12 @@
             <h1 class="text-4xl md:text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-teal-300 to-sky-400 mb-2">
                 Salam Check
             </h1>
-            <p class="text-lg text-gray-400">Votre guide pour une consommation sereine.</p>
-            <p id="lastUpdated" class="text-xs text-gray-500 mt-2"></p>
+            <p class="text-lg text-gray-400">Les derniers produits vérifiés pour vous, en temps réel.</p>
         </header>
 
-        <!-- Barre de recherche et filtres -->
+        <!-- Filtres -->
         <div class="sticky top-4 z-10 p-4 mb-8 rounded-xl glass-effect shadow-lg">
-            <div class="flex flex-col md:flex-row gap-4">
-                <div class="relative flex-grow">
-                    <input type="text" id="searchInput" placeholder="Rechercher un produit (ex: Nutella, Panzani...)"
-                        class="w-full bg-gray-900/50 border border-gray-700 rounded-lg py-3 px-4 pl-10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-400 transition-all">
-                    <svg class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                </div>
+            <div class="flex flex-col md:flex-row gap-4 justify-center">
                 <div id="filterButtons" class="flex items-center justify-center gap-2 flex-wrap">
                      <button class="filter-btn active bg-teal-500 text-white" data-status="all">Tous</button>
                      <button class="filter-btn" data-status="Halal">Halal</button>
@@ -86,87 +93,130 @@
                 </div>
             </div>
         </div>
-
-        <!-- Grille des produits -->
-        <main id="productList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <!-- Les produits seront insérés ici par JavaScript -->
-        </main>
         
-        <!-- Message si aucun résultat -->
-        <div id="noResults" class="hidden text-center py-12">
-             <p class="text-xl text-gray-500">Aucun produit ne correspond à votre recherche.</p>
-        </div>
+        <!-- Zone de contenu principal -->
+        <main id="contentArea">
+            <!-- Spinner de chargement -->
+            <div id="loader" class="flex justify-center py-12">
+                <div class="spinner"></div>
+            </div>
+            
+            <!-- Grille des produits -->
+            <div id="productList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Les produits seront insérés ici par JavaScript -->
+            </div>
+            
+            <!-- Message si aucun résultat -->
+            <div id="noResults" class="hidden text-center py-12">
+                 <p class="text-xl text-gray-500">Aucun produit ne correspond à votre recherche.</p>
+            </div>
+        </main>
 
         <!-- Pied de page -->
         <footer class="text-center mt-12 py-6 border-t border-gray-800">
-            <p class="text-gray-500 text-sm">&copy; 2025 Salam Check. Les informations sont fournies à titre indicatif. En cas de doute, veuillez consulter un organisme de certification.</p>
+            <p class="text-gray-500 text-sm">&copy; 2025 Salam Check. Propulsé par l'API de Open Food Facts. Les informations sont fournies à titre indicatif et la classification est automatisée. En cas de doute, veuillez consulter un organisme de certification.</p>
         </footer>
     </div>
 
     <script>
+        // --- DOM Elements ---
+        const contentArea = document.getElementById('contentArea');
         const productList = document.getElementById('productList');
-        const searchInput = document.getElementById('searchInput');
         const filterButtonsContainer = document.getElementById('filterButtons');
         const noResults = document.getElementById('noResults');
+        const loader = document.getElementById('loader');
 
-        // --- BASE DE DONNÉES DE PRODUITS AUTHENTIQUES ---
-        // Cette liste est organisée et vérifiée pour inclure des produits réels du quotidien.
-        const allProductsData = [
-            // --- HALAL ---
-            { name: "Filet de Poulet Isla Délice", category: "Alimentaire", status: "Halal", reason: "Certifié Halal par un organisme de contrôle reconnu (AVS).", icon: "🍗", imageUrl: "https://www.google.com/search?tbm=isch&q=Filet%20de%20Poulet%20Isla%20D%C3%A9lice" },
-            { name: "Steak Haché Charal Pur Bœuf (Gamme Halal)", category: "Alimentaire", status: "Halal", reason: "Gamme spécifiquement certifiée Halal par la Mosquée d'Évry-Courcouronnes.", icon: "🥩", imageUrl: "https://www.google.com/search?tbm=isch&q=Steak%20Hach%C3%A9%20Charal%20Pur%20B%C5%93uf%20(Gamme%20Halal)" },
-            { name: "La Vache Qui Rit", category: "Alimentaire", status: "Halal", reason: "Ne contient pas de présure animale. Listé comme Halal par plusieurs organismes.", icon: "🧀", imageUrl: "https://www.google.com/search?tbm=isch&q=La%20Vache%20Qui%20Rit" },
-            { name: "Fromage Kiri", category: "Alimentaire", status: "Halal", reason: "Fromage frais sans présure animale, adapté à une alimentation Halal.", icon: "🧀", imageUrl: "https://www.google.com/search?tbm=isch&q=Fromage%20Kiri" },
-            { name: "Coca-Cola Original", category: "Boisson", status: "Halal", reason: "Ingrédients d'origine végétale ou synthétique, ne contient pas d'alcool.", icon: "🥤", imageUrl: "https://www.google.com/search?tbm=isch&q=Coca-Cola%20Original" },
-            { name: "Eau Minérale Evian", category: "Boisson", status: "Halal", reason: "Eau minérale naturelle, pure et sans aucun ajout.", icon: "💧", imageUrl: "https://www.google.com/search?tbm=isch&q=Eau%20Min%C3%A9rale%20Evian" },
-            { name: "Thon Petit Navire à l'huile de tournesol", category: "Épicerie", status: "Halal", reason: "Ingrédients simples : thon, huile végétale, sel.", icon: "🐟", imageUrl: "https://www.google.com/search?tbm=isch&q=Thon%20Petit%20Navire%20%C3%A0%20l%27huile%20de%20tournesol" },
-            { name: "Pâtes Panzani (Spaghetti)", category: "Épicerie", status: "Halal", reason: "100% semoule de blé dur, sans aucun ingrédient d'origine animale.", icon: "🍝", imageUrl: "https://www.google.com/search?tbm=isch&q=P%C3%A2tes%20Panzani%20(Spaghetti)" },
-            { name: "Lentilles Vertes D'aucy", category: "Épicerie", status: "Halal", reason: "Conserve de légumes sans aucun ajout d'origine animale.", icon: "🥫", imageUrl: "https://www.google.com/search?tbm=isch&q=Lentilles%20Vertes%20D%27aucy" },
-            { name: "Savon de Marseille Le Petit Marseillais", category: "Soin", status: "Halal", reason: "Composition à base d'huiles végétales, sans graisses animales.", icon: "🧼", imageUrl: "https://www.google.com/search?tbm=isch&q=Savon%20de%20Marseille%20Le%20Petit%20Marseillais" },
-            { name: "Dentifrice Signal Anti-caries", category: "Soin", status: "Halal", reason: "Ingrédients synthétiques ou végétaux, sans composants d'origine porcine ou alcool.", icon: "🦷", imageUrl: "https://www.google.com/search?tbm=isch&q=Dentifrice%20Signal%20Anti-caries" },
+        // --- State Management ---
+        let currentSearchResults = [];
 
-            // --- HARAM ---
-            { name: "Saucisson Sec Cochonou", category: "Alimentaire", status: "Haram", reason: "Contient de la viande et du gras de porc.", icon: "🍖", imageUrl: "https://www.google.com/search?tbm=isch&q=Saucisson%20Sec%20Cochonou" },
-            { name: "Jambon Le Bon Paris Herta", category: "Alimentaire", status: "Haram", reason: "Produit élaboré à base de viande de porc.", icon: "🍖", imageUrl: "https://www.google.com/search?tbm=isch&q=Jambon%20Le%20Bon%20Paris%20Herta" },
-            { name: "Bonbons Haribo Dragibus", category: "Confiserie", status: "Haram", reason: "Contient de la gélatine de porc (information confirmée par le fabricant pour la France).", icon: "🍬", imageUrl: "https://www.google.com/search?tbm=isch&q=Bonbons%20Haribo%20Dragibus" },
-            { name: "Mousse de Canard Labeyrie", category: "Alimentaire", status: "Haram", reason: "Viande de canard non abattue selon le rite, contient souvent du Porto ou Cognac.", icon: "🦆", imageUrl: "https://www.google.com/search?tbm=isch&q=Mousse%20de%20Canard%20Labeyrie" },
-            { name: "Vinaigre de Vin Rouge Maille", category: "Épicerie", status: "Haram", reason: "Produit directement à partir du vin, conserve un taux d'alcool résiduel.", icon: "🍇", imageUrl: "https://www.google.com/search?tbm=isch&q=Vinaigre%20de%20Vin%20Rouge%20Maille" },
-            { name: "Tiramisu La Laitière", category: "Alimentaire", status: "Haram", reason: "Recette traditionnelle contenant de l'alcool (Amaretto ou Marsala).", icon: "🍰", imageUrl: "https://www.google.com/search?tbm=isch&q=Tiramisu%20La%20Laiti%C3%A8re" },
-            { name: "Pâté de Campagne Hénaff", category: "Épicerie", status: "Haram", reason: "Recette à base de foie et de gras de porc.", icon: "🥫", imageUrl: "https://www.google.com/search?tbm=isch&q=P%C3%A2t%C3%A9%20de%20Campagne%20H%C3%A9naff" },
-            { name: "Bière Kronenbourg 1664", category: "Boisson", status: "Haram", reason: "Boisson alcoolisée fermentée, interdite à la consommation.", icon: "🍺", imageUrl: "https://www.google.com/search?tbm=isch&q=Bi%C3%A8re%20Kronenbourg%201664" },
-            { name: "Gâteau PIM'S Orange Lu", category: "Confiserie", status: "Haram", reason: "Contient un faible pourcentage d'alcool utilisé comme support pour les arômes.", icon: "🍊", imageUrl: "https://www.google.com/search?tbm=isch&q=G%C3%A2teau%20PIM%27S%20Orange%20Lu" },
-
-            // --- DOUTEUX ---
-            { name: "Nutella Ferrero", category: "Alimentaire", status: "Douteux", reason: "Contient de la lécithine et de la vanilline. Bien que souvent d'origine végétale, l'absence de certification rend le statut incertain.", icon: "🍫", imageUrl: "https://www.google.com/search?tbm=isch&q=Nutella%20Ferrero" },
-            { name: "Fromage Camembert Président", category: "Alimentaire", status: "Douteux", reason: "La présure utilisée pour la coagulation du lait est souvent d'origine animale (veau) et non Halal.", icon: "🧀", imageUrl: "https://www.google.com/search?tbm=isch&q=Fromage%20Camembert%20Pr%C3%A9sident" },
-            { name: "Pain de mie Harrys 100% Mie", category: "Boulangerie", status: "Douteux", reason: "Peut contenir des émulsifiants (E471, E472e) d'origine animale ou végétale. Présence possible d'alcool comme conservateur.", icon: "🍞", imageUrl: "https://www.google.com/search?tbm=isch&q=Pain%20de%20mie%20Harrys%20100%25%20Mie" },
-            { name: "Mayonnaise de Dijon Amora", category: "Épicerie", status: "Douteux", reason: "Contient du vinaigre d'alcool. Son statut est débattu selon les écoles juridiques concernant la transformation chimique de l'alcool.", icon: "🥚", imageUrl: "https://www.google.com/search?tbm=isch&q=Mayonnaise%20de%20Dijon%20Amora" },
-            { name: "Crème hydratante Nivea", category: "Soin", status: "Douteux", reason: "Peut contenir de la glycérine, du collagène ou d'autres ingrédients dont l'origine (animale ou végétale) n'est pas spécifiée.", icon: "🧴", imageUrl: "https://www.google.com/search?tbm=isch&q=Cr%C3%A8me%20hydratante%20Nivea" },
-            { name: "Extrait de vanille liquide Vahiné", category: "Épicerie", status: "Douteux", reason: "L'extraction des arômes se fait via un support alcoolique. La persistance d'alcool dans le produit final est débattue.", icon: "🌿", imageUrl: "https://www.google.com/search?tbm=isch&q=Extrait%20de%20vanille%20liquide%20Vahin%C3%A9" },
-            { name: "Chips Lays saveur Poulet Rôti", category: "Alimentaire", status: "Douteux", reason: "Les arômes 'goût poulet' ne contiennent pas de viande mais leur composition exacte est complexe et peut inclure des dérivés animaux non-halal.", icon: "🥔", imageUrl: "https://www.google.com/search?tbm=isch&q=Chips%20Lays%20saveur%20Poulet%20R%C3%B4ti" },
-            { name: "Glace Carte d'Or Vanille", category: "Alimentaire", status: "Douteux", reason: "Contient des mono et diglycérides d'acides gras (E471) qui peuvent être d'origine animale ou végétale. Le fabricant ne spécifie pas.", icon: "🍨", imageUrl: "https://www.google.com/search?tbm=isch&q=Glace%20Carte%20d%27Or%20Vanille" },
-            { name: "Chewing-gum Hollywood Menthe Verte", category: "Confiserie", status: "Douteux", reason: "La 'gomme base' est un mélange complexe dont certains composants peuvent être d'origine animale. Contient aussi des polyols (statut débattu).", icon: "🍃", imageUrl: "https://www.google.com/search?tbm=isch&q=Chewing-gum%20Hollywood%20Menthe%20Verte" }
-        ];
-        let allProducts = [];
-
-        // Styles pour les statuts
+        // --- Styles for statuses ---
         const statusStyles = {
             'Halal': { badge: 'bg-teal-500/20 text-teal-300 border-teal-500', glow: 'shadow-[0_0_15px_rgba(45,212,191,0.3)]' },
             'Haram': { badge: 'bg-red-500/20 text-red-400 border-red-500', glow: 'shadow-[0_0_15px_rgba(239,68,68,0.3)]' },
             'Douteux': { badge: 'bg-amber-500/20 text-amber-400 border-amber-500', glow: 'shadow-[0_0_15px_rgba(245,158,11,0.3)]' }
         };
-        
-        // Fonction pour afficher les produits
-        const displayProducts = (filteredProducts) => {
-            productList.innerHTML = ''; // Vide la liste
-            if (filteredProducts.length === 0 && allProducts.length > 0) {
-                noResults.classList.remove('hidden');
-            } else {
-                noResults.classList.add('hidden');
+
+        // --- Classification Logic ---
+        const haramIngredients = ['porc', 'saindoux', 'gélatine de porc', 'lardons', 'jambon', 'bacon', 'vin', 'alcool', 'bière', 'liqueur', 'éthanol', 'cochon', 'gélatine animale', 'cochenille', 'e120'];
+        const doubtfulIngredients = ['gélatine', 'présure', 'e471', 'e472', 'mono et diglycérides', 'graisses animales', 'collagène', 'lactosérum'];
+
+        const determineStatus = (product) => {
+            const ingredients = (product.ingredients_text_fr || "").toLowerCase();
+            const labels = (product.labels || "").toLowerCase();
+            const name = (product.product_name || "").toLowerCase();
+            const additives = product.additives_tags || [];
+            const analysis = product.ingredients_analysis_tags || [];
+
+            if (!ingredients && !labels) {
+                return { status: "Douteux", reason: "Informations insuffisantes pour déterminer le statut. Vérifiez l'emballage." };
+            }
+            if (labels.includes('halal')) {
+                return { status: "Halal", reason: "Ce produit possède une certification Halal." };
+            }
+            if (name.includes('bière') || name.includes('vin') || name.includes('whisky') || name.includes('rhum') || name.includes('vodka') || name.includes('liqueur')) {
+                return { status: "Haram", reason: `Ceci est une boisson alcoolisée.` };
+            }
+
+            if (additives.includes('en:e120')) {
+                return { status: "Haram", reason: `Contient du colorant E120 (cochenille), un ingrédient considéré comme Haram.` };
+            }
+
+            for (const item of haramIngredients) {
+                if (ingredients.includes(item)) {
+                    return { status: "Haram", reason: `Contient "${item}", un ingrédient considéré comme Haram.` };
+                }
             }
             
-            filteredProducts.forEach((product, index) => {
-                const style = statusStyles[product.status];
+            if (analysis.includes('en:vegan') || analysis.includes('en:vegetarian')) {
+                return { status: "Halal", reason: "Produit compatible Végétalien/Végétarien et ne contient pas d'alcool." };
+            }
+
+            for (const item of doubtfulIngredients) {
+                if (ingredients.includes(item)) {
+                    if (item === 'gélatine' && (ingredients.includes('gélatine végétale') || ingredients.includes('gélatine de poisson') || ingredients.includes('gélatine bovine halal'))) {
+                        continue;
+                    }
+                     if (item === 'lactosérum' && labels.includes('fromage')) {
+                         return { status: "Douteux", reason: `Contient du lactosérum (petit-lait) dont la présure peut être d'origine animale non-halal.` };
+                    }
+                    return { status: "Douteux", reason: `Contient "${item}", un ingrédient dont l'origine (animale ou végétale) doit être vérifiée.` };
+                }
+            }
+            const categories = (product.categories || "").toLowerCase();
+             if (categories.includes('eaux') || categories.includes('fruits') || categories.includes('légumes') || categories.includes('pâtes alimentaires')) {
+                if (!ingredients.length || ingredients.includes('blé') || ingredients.includes('eau')) {
+                     return { status: "Halal", reason: "Produit de base ne contenant pas d'ingrédients transformés suspects." };
+                }
+            }
+
+            return { status: "Douteux", reason: "Produit non certifié. L'analyse des ingrédients ne permet pas de conclure. La vérification est recommandée." };
+        };
+
+        const getIconForProduct = (product) => {
+            const categories = (product.categories || "").toLowerCase();
+            if (categories.includes('boissons')) return '🥤';
+            if (categories.includes('viandes')) return '🥩';
+            if (categories.includes('fromages')) return '🧀';
+            if (categories.includes('pâtes')) return '🍝';
+            if (categories.includes('confiseries') || categories.includes('bonbons')) return '🍬';
+            if (categories.includes('gâteaux')) return '🍰';
+            if (categories.includes('poissons')) return '🐟';
+            if (categories.includes('pains')) return '🍞';
+            if (categories.includes('chocolats')) return '🍫';
+            return '🛒'; // Default icon
+        }
+
+        // --- API & Display Functions ---
+        const displayProducts = (productsToDisplay) => {
+            productList.innerHTML = '';
+            
+            noResults.classList.toggle('hidden', productsToDisplay.length > 0);
+
+            productsToDisplay.forEach((product, index) => {
+                const { status, reason } = determineStatus(product);
+                const style = statusStyles[status];
+                const icon = getIconForProduct(product);
+
                 const productCard = document.createElement('div');
                 productCard.className = `flex flex-col p-5 rounded-xl border glass-effect card-hover-effect fade-in ${style.glow}`;
                 productCard.style.animationDelay = `${index * 50}ms`;
@@ -175,22 +225,21 @@
                     <div class="flex-grow">
                         <div class="flex items-start justify-between mb-3">
                             <div>
-                                <p class="text-sm text-gray-400">${product.category}</p>
-                                <h2 class="text-xl font-bold text-white">${product.name}</h2>
+                                <h2 class="text-xl font-bold text-white">${product.product_name || 'Nom indisponible'}</h2>
                             </div>
-                            <div class="text-4xl">${product.icon}</div>
+                            <div class="text-4xl">${icon}</div>
                         </div>
                         <div class="mb-4">
                             <span class="text-xs font-semibold inline-block py-1 px-3 rounded-full border ${style.badge}">
-                                ${product.status}
+                                ${status}
                             </span>
                         </div>
-                        <p class="text-gray-400 text-sm">${product.reason}</p>
+                        <p class="text-gray-400 text-sm">${reason}</p>
                     </div>
                     <div class="mt-4 pt-4 border-t border-gray-700/50 text-right">
-                        <a href="${product.imageUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center text-sm font-medium text-teal-400 hover:text-teal-300 transition-colors">
-                            Voir l'image
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1.5" viewBox="0 0 20 20" fill="currentColor">
+                        <a href="https://world.openfoodfacts.org/product/${product.code}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center text-sm font-medium text-teal-400 hover:text-teal-300 transition-colors">
+                            Voir la fiche produit
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1.5" viewBox="http://www.w3.org/2000/svg" fill="currentColor">
                               <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
                               <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
                             </svg>
@@ -201,23 +250,48 @@
             });
         };
 
-        // Fonction pour filtrer et afficher
         const filterAndDisplay = () => {
-            const searchTerm = searchInput.value.toLowerCase();
             const activeStatus = document.querySelector('.filter-btn.active').dataset.status;
-
-            const filtered = allProducts.filter(product => {
-                const matchesSearch = product.name.toLowerCase().includes(searchTerm) || product.category.toLowerCase().includes(searchTerm);
-                const matchesStatus = (activeStatus === 'all') || (product.status === activeStatus);
-                return matchesSearch && matchesStatus;
-            });
-
-            displayProducts(filtered);
+            if (activeStatus === 'all') {
+                displayProducts(currentSearchResults);
+            } else {
+                const filtered = currentSearchResults.filter(product => {
+                    return determineStatus(product).status === activeStatus;
+                });
+                displayProducts(filtered);
+            }
         };
-        
-        // Écouteurs d'événements
-        searchInput.addEventListener('input', filterAndDisplay);
 
+        const fetchAndUpdateProducts = async () => {
+            loader.style.display = 'flex';
+            noResults.classList.add('hidden');
+            productList.innerHTML = ''; // Clear list before new fetch
+
+            try {
+                // Fetch products sorted by last modification date
+                const response = await fetch(`https://world.openfoodfacts.org/api/v2/search?sort_by=last_modified_t&page_size=300&fields=product_name,code,image_url,ingredients_text_fr,labels,categories,additives_tags,ingredients_analysis_tags&json=1&countries_tags_fr=france`);
+                if (!response.ok) throw new Error('Network response was not ok.');
+                const data = await response.json();
+                // Filter for products with essential info
+                currentSearchResults = data.products.filter(p => p.product_name && p.ingredients_text_fr && p.image_url);
+                
+                loader.style.display = 'none';
+                if (currentSearchResults.length > 0) {
+                    filterAndDisplay();
+                } else {
+                    noResults.innerHTML = '<p class="text-xl text-gray-500">Aucun produit récent trouvé. Réessayez plus tard.</p>';
+                    noResults.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error("Failed to fetch products:", error);
+                currentSearchResults = [];
+                loader.style.display = 'none';
+                noResults.innerHTML = '<p class="text-xl text-red-400">Une erreur est survenue lors de la récupération des produits.</p>';
+                noResults.classList.remove('hidden');
+            }
+        };
+
+        // --- Event Listeners ---
         filterButtonsContainer.addEventListener('click', (e) => {
             if (e.target.classList.contains('filter-btn')) {
                 filterButtonsContainer.querySelector('.filter-btn.active').classList.remove('active', 'bg-teal-500', 'text-white');
@@ -230,15 +304,8 @@
                 filterAndDisplay();
             }
         });
-
-        const initializeApp = () => {
-            allProducts = [...allProductsData];
-            allProducts.sort((a, b) => a.name.localeCompare(b.name));
-            document.getElementById('lastUpdated').textContent = `Données établies en Septembre 2025`;
-            filterAndDisplay();
-        };
         
-        // Initialisation
+        // --- Initialization ---
         document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.filter-btn').forEach(btn => {
                 if (!btn.classList.contains('active')) {
@@ -247,12 +314,14 @@
                      btn.className = 'filter-btn active bg-teal-500 text-white px-4 py-2 text-sm font-medium rounded-lg transition-colors';
                 }
             });
-            
-            initializeApp();
-        });
 
+            // Initial fetch
+            fetchAndUpdateProducts();
+
+            // Set interval to refresh data every 60 seconds (60000 milliseconds)
+            setInterval(fetchAndUpdateProducts, 60000);
+        });
     </script>
 </body>
-
 </html>
 
